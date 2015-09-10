@@ -20,27 +20,6 @@ local function get_credentials ()
       secret_key = secret_key
     }
   end
-
-  local res = ngx.location.capture('/_meta-data/iam/security-credentials/')
-  if res.status ~= ngx.HTTP_OK then
-    return
-  end
-
-  res = ngx.location.capture('/_meta-data/iam/security-credentials/' .. res.body)
-  if res.status ~= ngx.HTTP_OK then
-    return
-  end
-
-  local creds = cjson.decode(res.body)
-  if creds['Type'] ~= 'AWS-HMAC' or creds['Code'] ~= 'Success' then
-    return
-  end
-
-  return {
-    access_key = creds['AccessKeyId'],
-    secret_key = creds['SecretAccessKey'],
-    security_token = creds['Token']
-  }
 end
 
 local function get_iso8601_basic(timestamp)
@@ -77,8 +56,8 @@ local function get_sha256_digest(s)
 end
 
 local function get_hashed_canonical_request(timestamp, host, uri)
-  local digest = get_sha256_digest(ngx.var.request_body)
-  local canonical_request = ngx.var.request_method .. '\n'
+  local digest = get_sha256_digest('')
+  local canonical_request = 'GET' .. '\n'
     .. uri .. '\n'
     .. '\n'
     .. 'host:' .. host .. '\n'
@@ -113,20 +92,7 @@ local function get_authorization(keys, timestamp, region, service, host, uri)
 end
 
 local function get_service_and_region(host)
-  local patterns = {
-    {'s3.amazonaws.com', 's3', 'us-east-1'},
-    {'s3-external-1.amazonaws.com', 's3', 'us-east-1'},
-    {'s3%-([a-z0-9-]+)%.amazonaws%.com', 's3', nil}
-  }
-  for i,data in ipairs(patterns) do
-    local region = host:match(data[1])
-    if region ~= nil and data[3] == nil then
-      return data[2], region
-    elseif region ~= nil then
-      return data[2], data[3]
-    end
-  end
-  return nil, nil
+  return 'sqs', 'us-east-1'
 end
 
 local function aws_set_headers(host, uri)
@@ -135,20 +101,10 @@ local function aws_set_headers(host, uri)
   local service, region = get_service_and_region(host)
   local auth = get_authorization(creds, timestamp, region, service, host, uri)
 
-  ngx.req.set_header('Authorization', auth)
-  ngx.req.set_header('Host', host)
-  ngx.req.set_header('x-amz-date', get_iso8601_basic(timestamp))
-  if creds['security_token'] ~= nil then
-    ngx.req.set_header('x-amz-security-token', creds['security_token'])
-  end
-end
 
-local function s3_set_headers(host, uri)
-  aws_set_headers(host, uri)
-  ngx.req.set_header('x-amz-content-sha256', get_sha256_digest(ngx.var.request_body))
+  return { Authorization = auth, Host = host, x-amz-date = get_iso8601_basic(timestamp), x-amz-content-sha256 = get_sha256_digest('')}
 end
 
 _M.aws_set_headers = aws_set_headers
-_M.s3_set_headers = s3_set_headers
 
 return _M
