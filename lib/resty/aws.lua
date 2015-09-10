@@ -101,7 +101,7 @@ local function aws_set_headers(host, uri)
   local service, region = get_service_and_region(host)
   local auth = get_authorization(creds, timestamp, region, service, host, uri)
 
-  return { 'Authorization' = auth, 'Host' = host, 'x-amz-date' = get_iso8601_basic(timestamp), 'x-amz-content-sha256' = get_sha256_digest('')}
+  return auth, host, get_iso8601_basic(timestamp), get_sha256_digest('')
 end
 
 _M.aws_set_headers = aws_set_headers
