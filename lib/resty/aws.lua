@@ -102,7 +102,7 @@ local function aws_set_headers(host, uri)
   local auth = get_authorization(creds, timestamp, region, service, host, uri)
 
   local headers = {}
-  headers['Authorization'] = auth
+  headers['Authorization'] = 1
   return headers
 end
 
