@@ -31,7 +31,7 @@ local function get_iso8601_basic_short(timestamp)
 end
 
 local function get_derived_signing_key(keys, timestamp, region, service)
-  local h = resty_hmac:new()
+  local h = resty_hmac:new("secret")
   k_date = h:digest('sha256', 'AWS4' .. keys['secret_key'], get_iso8601_basic_short(timestamp), true)
   k_region = h:digest('sha256', k_date, region, true)
   k_service = h:digest('sha256', k_region, service, true)
